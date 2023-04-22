@@ -1,0 +1,4 @@
+Name: Show page
+Description: Shows the currently open page md file
+Binding: show_md_page
+Interactive: true

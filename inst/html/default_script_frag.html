@@ -1,0 +1,31 @@
+<script>
+
+page_script = function(e) {
+  // Dieser Befehl bedeutet, dass man erst weiterkommt, wenn man die Aufgabe gelöst hat
+  disable_area("tuer1","Noch geht es nicht hinein");
+  disable_area("tuer2","Noch geht es nicht hinein");
+	$('area').on('click', function() {
+		//alert($(this).attr('alt') + ' clicked');
+	});
+
+	// Passe hier die Überprüfung der Lösung an
+	$('#sol-btn').on('click', function(e) {
+	  // str ist Text, der in der Inputbox eingegeben wurde
+	  var str = $("#input-text").val();
+	  // val ist der Wert als Zahl
+	  var val = Number(str);
+
+	  // Bedingung für richtige Lösung
+	  if (val == 160 || str == '160 m' || str == '160m') {
+	    show_correct();
+      enable_area('tuer1','Eintreten');
+      enable_area('tuer2','Eintreten');
+	  } else {
+	    // Adaptiere auch ggf. Link zu einer Hilfeseite
+	    show_wrong();
+	  }
+	});
+
+	$('img[usemap]').rwdImageMaps();
+};
+</script>
