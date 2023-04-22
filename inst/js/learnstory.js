@@ -3,6 +3,7 @@ $(document).on("click","#sol-btn",function(evt) {
   correct = check_sol(answer, solution);
   if (correct) {
     show_correct();
+    update_page_status("c");
   } else {
     show_wrong();
   }
@@ -35,13 +36,24 @@ function check_sol(answer, sol) {
 $(document).on("click","area",function(evt) {
   // Remove list item
   evt.preventDefault();
+  var id = evt.currentTarget.id;
+  var area;
+  var status = page_status;
 
-  var href = $(evt.currentTarget).attr("href");
-  var linkid = $(evt.currentTarget).attr("title");
+  for (var i=0; i < area_tab.length; i++) {
+    if (area_tab[i].id == id) {
+      area = area_tab[i];
+      break;
+    }
+  }
+
+  var link = area[[status+"_link"]];
+  if (link==="")
+    return;
 
   //alert("Area click!");
 	Shiny.onInputChange("imgAreaClick",
-	  {eventId: "imgAreaClick",id: "imgAreaClick", value: {linkid: linkid, href: href},nonce: Math.random()}
+	  {eventId: "imgAreaClick",id: "imgAreaClick", value: {linkid: id, href: link},nonce: Math.random()}
 	);
 });
 
@@ -58,12 +70,19 @@ $(document).on("click",".text-div",function(evt) {
 
       textdiv.addClass("hide-me");
       $(text_divs).eq(i+1).removeClass("hide-me");
+      if (i+1 >= text_divs.length-1) {
+        update_page_status("c");
+      }
       break;
     }
     i++;
   }
 });
 
+function update_page_status(status) {
+  page_status = status;
+  set_areas_to_page_status();
+}
 
 function show_wrong(msg) {
   if (msg !== undefined) {
@@ -78,22 +97,35 @@ function show_correct() {
   $("#correct-answer").removeClass("hide-me");
 }
 
-function set_areas_to_page_status(status) {
-
-
+function set_areas_to_page_status() {
+  var status = page_status;
+  for (var i=0; i < area_tab.length; i++) {
+    if (area_tab[i][status+"_show"]) {
+      enable_area(area_tab[[i]].id, area_tab[[i]][status+"_title"],area_tab[[i]][status+"_link"]);
+    } else {
+      disable_area(area_tab[[i]].id, area_tab[[i]][status+"_title"],"");
+    }
+  }
 }
 
-function disable_area(id, title) {
+function disable_area(id, title, href) {
   document.getElementById(id).setAttribute("onclick", "return false;");
   if (title !== undefined) {
     document.getElementById(id).setAttribute("title", title);
   }
+  if (href !== undefined) {
+    document.getElementById(id).setAttribute("href", href);
+  }
+
 }
 
-function enable_area(id, title) {
+function enable_area(id, title, href) {
   document.getElementById(id).setAttribute("onclick", "return true;");
   if (title !== undefined) {
     document.getElementById(id).setAttribute("title", title);
+  }
+  if (href !== undefined) {
+    document.getElementById(id).setAttribute("href", href);
   }
 }
 

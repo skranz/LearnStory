@@ -120,14 +120,14 @@ parse_areas = function(str) {
   areas = yaml.load(str)
 
   areas = lapply(areas, function(area) {
-    area$s_link = first.none.null(area$s_link, area$link)
-    area$s_title = first.none.null(area$s_title, area$s_link)
+    area$s_link = first.none.null(area$s_link, area$link, "")
+    area$s_title = first.none.null(area$s_title, area$s_link,"")
 
-    area$c_title = first.none.null(area$c_title, area$title)
-    area$c_link = first.none.null(area$c_link, area$link)
+    area$c_title = first.none.null(area$c_title, area$title,"")
+    area$c_link = first.none.null(area$c_link, area$link,"")
 
-    area$s_show = !is.null(c(area$s_title, area$s_link))
-    area$c_show = !is.null(c(area$c_title, area$c_link))
+    area$s_show = !all(c(area$s_title, area$s_link)=="")
+    area$c_show = !all(c(area$c_title, area$c_link)=="")
 
     html.tpl = '<area id="{{id}}" target="" alt="{{s_title}}" title="{{s_title}}" href="{{s_link}}" coords="{{coords}}" shape="{{shape}}">'
     area$html =  rmdtools::replace.whiskers(html.tpl, area, eval=FALSE)
