@@ -49,10 +49,10 @@ function check_sol(answer, sol) {
       }
     }
 
-     if (smaller === false) {
+     if (smaller === true) {
        return("w_smaller");
-     } else if (smaller === true) {
-       return("w_bigger");
+     } else if (smaller === false) {
+       return("w_larger");
      }
   }
   return "w";
