@@ -1,11 +1,13 @@
 $(document).on("click","#sol-btn",function(evt) {
   var answer = $("#input-text").val();
-  correct = check_sol(answer, solution);
+  check = check_sol(answer, solution);
+  correct = check.substr(0,1) == "c";
+
   if (correct) {
-    show_correct();
+    show_correct(check);
     update_page_status("c");
   } else {
-    show_wrong();
+    show_wrong(check);
   }
 
 	Shiny.onInputChange("btnClick",
@@ -17,18 +19,43 @@ $(document).on("click","#sol-btn",function(evt) {
 
 function check_sol(answer, sol) {
   var type = sol.type;
+  if (answer.trim()==="") {
+    return "w_empty";
+  }
+
   if (type == "numeric") {
     var val = parseNumber(answer);
+
+    if (isNaN(val)) {
+      return "w_nan";
+    }
+    smaller = "";
+
+    if (sol.hasOwnProperty('value')) {
+      if (val === sol.value) {
+        return("c");
+      }
+      smaller = val < sol.value;
+    }
     if (sol.hasOwnProperty('min')) {
       if (val >= sol.min && val <= sol.max) {
-        return(true);
+        return("c");
       }
-      if (val == sol.value) {
-        return(true);
+      smaller = val < sol.min;
+    }
+    if (sol.hasOwnProperty('broad_min')) {
+      if (val >= sol.broad_min && val <= sol.broad_max) {
+        return("c_broad");
       }
     }
+
+     if (smaller === false) {
+       return("w_smaller");
+     } else if (smaller === true) {
+       return("w_bigger");
+     }
   }
-  return false;
+  return "w";
 }
 
 
@@ -60,41 +87,57 @@ $(document).on("click","area",function(evt) {
 
 // Click on text link
 $(document).on("click",".text-div",function(evt) {
+  show_next_text(true);
+});
+
+function show_next_text(was_click = false) {
   var text_divs = $(".text-div");
   var i = 0;
   while (i < text_divs.length-1) {
     textdiv = $(text_divs).eq(i);
     if (!textdiv.hasClass("hide-me")) {
       // Don't do anything for qlick on question
-      if (textdiv.hasClass("type-question")) return;
+      if (was_click && textdiv.hasClass("type-question")) return;
 
       textdiv.addClass("hide-me");
       $(text_divs).eq(i+1).removeClass("hide-me");
-      if (i+1 >= text_divs.length-1) {
+      if (i+1 >= text_divs.length-1 && was_click) {
         update_page_status("c");
       }
       break;
     }
     i++;
   }
-});
+}
 
 function update_page_status(status) {
   page_status = status;
   set_areas_to_page_status();
 }
 
-function show_wrong(msg) {
-  if (msg !== undefined) {
-    $("#wrong-answer").html(msg);
+function set_hidden_text(show_id, hidden_id, default_id) {
+  var el = document.getElementById("hidden_"+hidden_id);
+  if (el === null) {
+    el = document.getElementById("hidden_"+default_id);
   }
-  $("#wrong-answer").removeClass("hide-me");
+  var new_html = "";
+  if (el !== null) {
+    new_html = $(el).html();
+  }
+
+  $("#"+show_id).html(new_html);
 }
 
-function show_correct() {
-  $("#wrong-answer").addClass("hide-me");
-  $("#question").addClass("hide-me");
-  $("#correct-answer").removeClass("hide-me");
+function show_wrong(type) {
+  // example w_empty wrongtype = _empty
+  set_hidden_text("show_wrong", "wrong"+type.substr(1),"wrong");
+  $("#show_wrong").removeClass("hide-me");
+}
+
+function show_correct(type) {
+  set_hidden_text("show_correct", "correct"+type.substr(1),"correct");
+  show_next_text(false);
+  update_page_status("c");
 }
 
 function set_areas_to_page_status() {
@@ -155,5 +198,5 @@ function parseNumber(str) {
   const numericStrWithPeriods = numericStr.replace(/,/g, '.');
 
   // parse the numeric string as a number and return it
-  return Number(numericStrWithPeriods);
+  return parseFloat(numericStrWithPeriods);
 }

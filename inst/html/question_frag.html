@@ -3,15 +3,6 @@
   {{question}}
 
   <input class = "parchment-input" type="text" id="input-text" name="input-text">
-  <div id="wrong-answer" class="hide-me wrong">
-  {{wrong}}
-  </div>
+  <div id="show_wrong" class="hide-me wrong"></div>
   <button id="sol-btn" class="parchment-btn">Sende Lösung</button>
-</div>
-
-<!-- Kasten bei korrekter Eingabe -->
-<div id="correct-answer" class="text-div on-top on-top hide-me correct">
-  <!-- Text bei korrekter Eingabe -->
-  {{correct}}
-  <button class='close-correct-btn' onclick='$("#correct-answer").addClass("hide-me");'>Schließen </button>
 </div>

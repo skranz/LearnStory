@@ -2,7 +2,7 @@ example = function() {
   story.dir = "C:/libraries/LearnStory/muenster/umwelt"
   img.dir = "C:/libraries/LearnStory/muenster/img"
 
-  app = storyApp(story.dir, img.dir, start_pageid = "30")
+  app = storyApp(story.dir, img.dir, start_pageid = "40")
   viewApp(app)
 
 }

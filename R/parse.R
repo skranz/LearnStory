@@ -1,9 +1,27 @@
 
-parse_story_page = function(page.file, img.dir=getApp()$glob$img.dir, app=getApp()) {
+parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story.dir  = glob$story.dir, glob=getApp()$glob) {
   restore.point("parse_story_page")
   txt = readUtf8(page.file)
   p = parse.page.md(txt)
 
+
+  # Include linked exercise
+  ex_row = which(names(p)=="exercise")
+  if (length(ex_row)>0) {
+    ex_row = ex_row[[1]]
+    ex_file = paste0(story.dir,"/", trimws(p[[ex_row]]),".md")
+    ex_txt = readUtf8(ex_file)
+    ex_li = parse.page.md(ex_txt)
+    p = insert.into.list(p, ex_li, ex_row, overwrite.pos = TRUE)
+  }
+
+  default.file = paste0(story.dir,"/defaults.md")
+  if (file.exists(default.file)) {
+    def_txt = readUtf8(default.file)
+    defaults = parse.page.md(def_txt)
+    fields = setdiff(names(defaults), names(p))
+    p[fields] = defaults[fields]
+  }
 
   # Parse image map areas
   area.df = parse_areas(p$areas)
@@ -38,15 +56,16 @@ parse_story_page = function(page.file, img.dir=getApp()$glob$img.dir, app=getApp
   txt = unlist(p[inds]) %>% trimws()
 
   html = rep("", length(inds))
-  rows = fields[inds]=="text"
+  rows = fields[inds] %in% c("text")
+
+  # Special replacements for text
+  txt[rows] = gsub("{{correct}}",'<div id="show_correct" class="correct"></div>', txt[rows], fixed=TRUE)
   html[rows] = sapply(txt[rows], rmdtools::md2html, fragment.only = TRUE)
 
   rows = fields[inds]=="question"
   html[rows] = sapply(txt[rows], function(str) {
     vals = list(
-      question = rmdtools::md2html(p$question, fragment.only = TRUE),
-      wrong = rmdtools::md2html(p$wrong, fragment.only = TRUE),
-      correct = rmdtools::md2html(p$correct, fragment.only = TRUE)
+      question = rmdtools::md2html(p$question, fragment.only = TRUE)
     )
     cat(rmdtools::replace.whiskers(app$glob$question.frag, vals, eval=FALSE))
     rmdtools::replace.whiskers(app$glob$question.frag, vals, eval=FALSE)
@@ -59,10 +78,30 @@ parse_story_page = function(page.file, img.dir=getApp()$glob$img.dir, app=getApp
 
   question.row = which(p$text.df$type=="question")
 
+  p = add_page_hidden_html(p)
 
-
-
+  p$show_correct =
   p
+}
+
+add_page_hidden_html = function(page) {
+  restore.point("add_page_hidden_html")
+  hidden = startsWith(names(page), "correct") |
+           startsWith(names(page), "wrong") |
+           startsWith(names(page), "help")
+
+  hidden = which(hidden)
+  if (length(hidden)==0) return("")
+
+  fields = names(page)[hidden]
+
+  page[hidden] = lapply(page[hidden],rmdtools::md2html, fragment.only=TRUE)
+
+  html = paste0('<div id="hidden_', fields, '">\n', page[hidden],"\n</div>", collapse="\n")
+
+  page$hidden_html = html
+  page
+
 }
 
 parse_img_map = function(html, links=NULL) {
@@ -90,16 +129,22 @@ parse.page.md = function(txt, hashdot = "#. ",...) {
   if (length(txt)==1) txt = sep.lines(txt)
   df = split.text.in.startline.blocks(txt, start.with = hashdot)
   li = list()
-  start.txt = df$inner[1]
-  if (nchar(start.txt)>0) {
-    li = read.yaml(text = start.txt)
+
+  has.start = isTRUE(df$head[[1]] == "START")
+  if (has.start) {
+    start.txt = df$inner[1]
+    if (nchar(start.txt)>0) {
+      li = read.yaml(text = start.txt)
+    }
   }
-  if (NROW(df)>1) {
+  if (NROW(df)>as.integer(has.start)) {
     df = df[-1,]
-    names = str.right.of(df$head, hashdot) %>% str.left.of(" ")
+    head = str.right.of(df$head, hashdot) %>% trimws()
+    arg = str.right.of(head, " ", not.found = rep("", length(head)))
+    names =  str.left.of(head, " ")
+    df$inner = paste0(arg," ", df$inner) %>% trimws()
     li2 = as.list(df$inner)
     names(li2) = names
-
     li = c(li, li2)
   }
   li
