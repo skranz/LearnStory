@@ -1,62 +1,21 @@
 $(document).on("click","#sol-btn",function(evt) {
   var answer = $("#input-text").val();
   check = check_sol(answer, solution);
-  correct = check.substr(0,1) == "c";
-
-  if (correct) {
+  if (check.ok) {
     show_correct(check);
     update_page_status("c");
   } else {
     show_wrong(check);
   }
 
-	Shiny.onInputChange("btnClick",
-	  {eventId: "btnClick",id: "btn-sol",nonce: Math.random()}
+	Shiny.onInputChange("ls_click",
+	  {eventId: "ls_lick",id: "btn-sol",nonce: Math.random()}
 	);
+
+	evt.stopPropagation();
 
 });
 
-
-function check_sol(answer, sol) {
-  var type = sol.type;
-  if (answer.trim()==="") {
-    return "w_empty";
-  }
-
-  if (type == "numeric") {
-    var val = parseNumber(answer);
-
-    if (isNaN(val)) {
-      return "w_nan";
-    }
-    smaller = "";
-
-    if (sol.hasOwnProperty('value')) {
-      if (val === sol.value) {
-        return("c");
-      }
-      smaller = val < sol.value;
-    }
-    if (sol.hasOwnProperty('min')) {
-      if (val >= sol.min && val <= sol.max) {
-        return("c");
-      }
-      smaller = val < sol.min;
-    }
-    if (sol.hasOwnProperty('broad_min')) {
-      if (val >= sol.broad_min && val <= sol.broad_max) {
-        return("c_broad");
-      }
-    }
-
-     if (smaller === true) {
-       return("w_smaller");
-     } else if (smaller === false) {
-       return("w_larger");
-     }
-  }
-  return "w";
-}
 
 
 
@@ -79,8 +38,8 @@ $(document).on("click","area",function(evt) {
     return;
 
   //alert("Area click!");
-	Shiny.onInputChange("imgAreaClick",
-	  {eventId: "imgAreaClick",id: "imgAreaClick", value: {linkid: id, href: link},nonce: Math.random()}
+	Shiny.onInputChange("ls_click",
+	  {eventId: "ls_click",id: "imgAreaClick", value: {linkid: id, href: link},nonce: Math.random()}
 	);
 });
 
@@ -88,6 +47,7 @@ $(document).on("click","area",function(evt) {
 // Click on text link
 $(document).on("click",".text-div",function(evt) {
   show_next_text(true);
+
 });
 
 function show_next_text(was_click = false) {
@@ -96,7 +56,7 @@ function show_next_text(was_click = false) {
   while (i < text_divs.length-1) {
     textdiv = $(text_divs).eq(i);
     if (!textdiv.hasClass("hide-me")) {
-      // Don't do anything for qlick on question
+      // Don't do anything for click on question
       if (was_click && textdiv.hasClass("type-question")) return;
 
       textdiv.addClass("hide-me");
@@ -104,10 +64,16 @@ function show_next_text(was_click = false) {
       if (i+1 >= text_divs.length-1 && was_click) {
         update_page_status("c");
       }
-      break;
+      return;
     }
     i++;
   }
+	// Last text element: send event to R
+	Shiny.onInputChange("ls_click",
+	  {eventId: "ls_lick",id: "last_text_click",nonce: Math.random()}
+	);
+
+
 }
 
 function update_page_status(status) {
@@ -115,7 +81,7 @@ function update_page_status(status) {
   set_areas_to_page_status();
 }
 
-function set_hidden_text(show_id, hidden_id, default_id) {
+function set_hidden_text(show_id, hidden_id, default_id, whiskers_val = null) {
   var el = document.getElementById("hidden_"+hidden_id);
   if (el === null) {
     el = document.getElementById("hidden_"+default_id);
@@ -125,22 +91,31 @@ function set_hidden_text(show_id, hidden_id, default_id) {
     new_html = $(el).html();
   }
 
+  if (whiskers_val !== null) {
+    new_html = replace_whiskers(new_html, whiskers_val);
+  }
+
   $("#"+show_id).html(new_html);
 }
 
-function show_wrong(type) {
+function show_wrong(check) {
   // example w_empty wrongtype = _empty
-  set_hidden_text("show_wrong", "wrong"+type.substr(1),"wrong");
+  let type = check.type;
+  set_hidden_text("show_wrong", type,"wrong", check);
   $("#show_wrong").removeClass("hide-me");
 }
 
-function show_correct(type) {
-  set_hidden_text("show_correct", "correct"+type.substr(1),"correct");
+function show_correct(check) {
+  let type = check.type;
+  set_hidden_text("show_correct", type,"correct", check);
   show_next_text(false);
   update_page_status("c");
 }
 
 function set_areas_to_page_status() {
+  if (typeof area_tab === "undefined") {
+    return;
+  }
   var status = page_status;
   for (var i=0; i < area_tab.length; i++) {
     if (area_tab[i][status+"_show"]) {
@@ -172,31 +147,10 @@ function enable_area(id, title, href) {
   }
 }
 
-function check_math(user, sol, vals) {
-  var res_user;
-  for (var i = 0; i < vals.length; i++) {
-    val = vals[[i]];
-    try {
-      res_user = math.eval(user, val);
-    } catch(error) {
-      return({ok: false, error: error});
-    }
-    res_sol = math.eval(sol, val);
-    if (res_user !== res_sol) {
-      return({ok: false});
-    }
-  }
-  return({ok: true});
-}
-
-
-function parseNumber(str) {
-  // remove all non-numeric characters except commas and periods from the string
-  const numericStr = str.replace(/[^0-9,.]/g, '');
-
-  // replace commas with periods
-  const numericStrWithPeriods = numericStr.replace(/,/g, '.');
-
-  // parse the numeric string as a number and return it
-  return parseFloat(numericStrWithPeriods);
+// Define a function that replaces fields with object values
+function replace_whiskers(str, obj) {
+  // Use a regular expression to match fields in {{ }} format
+  var regex = /{{(\w+)}}/g;
+  // Use replaceAll method to replace matches with object values or original match
+  return str.replaceAll(regex, (match, key) => String(obj[key]) || match);
 }

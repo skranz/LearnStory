@@ -1,5 +1,5 @@
 
-parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story.dir  = glob$story.dir, glob=getApp()$glob) {
+parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story.dir  = glob$story.dir,pages = glob$pages, glob=getApp()$glob) {
   restore.point("parse_story_page")
   txt = readUtf8(page.file)
   p = parse.page.md(txt)
@@ -9,15 +9,16 @@ parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story
   ex_row = which(names(p)=="exercise")
   if (length(ex_row)>0) {
     ex_row = ex_row[[1]]
-    ex_file = paste0(story.dir,"/", trimws(p[[ex_row]]),".md")
-    ex_txt = readUtf8(ex_file)
+    ex_id = trimws(p[[ex_row]])
+    ex_page = get_page(ex_id)
+    ex_txt = readUtf8(ex_page$page.file)
     ex_li = parse.page.md(ex_txt)
     p = insert.into.list(p, ex_li, ex_row, overwrite.pos = TRUE)
   }
 
-  default.file = paste0(story.dir,"/defaults.md")
-  if (file.exists(default.file)) {
-    def_txt = readUtf8(default.file)
+  default_page = get_page("defaults")
+  if (!is.null(default_page)) {
+    def_txt = readUtf8(default_page$page.file)
     defaults = parse.page.md(def_txt)
     fields = setdiff(names(defaults), names(p))
     p[fields] = defaults[fields]
@@ -47,7 +48,7 @@ parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story
 
 
     p$script = paste0(p$script, "\n",
-      "var solution = ", toJSON(p$solution),";\n"
+      "var solution = ", toJSON(p$solution,auto_unbox = TRUE),";\n"
     )
   }
 
@@ -74,7 +75,11 @@ parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story
 
 
 
-  p$text.df = tibble(pos = seq_along(inds), type = fields[inds], txt = txt, html=html)
+  p$text.df = tibble(pos = seq_along(inds), type = fields[inds], txt = txt, html=html, wide=nchar(txt)>700)
+
+  if (isTRUE(p$solution$type=="abc")) {
+    p$text.df$wide[p$text.df$type == "question"]= TRUE
+  }
 
   question.row = which(p$text.df$type=="question")
 
@@ -154,6 +159,15 @@ parse_md_solution = function(str) {
   restore.point("parse_md_solution")
   sol = yaml.load(str)
   fields = names(sol)
+  if (isTRUE(sol$type=="abc")) {
+    correct = rep(FALSE, sol$num_choices)
+    names(correct) = letters[1:sol$num_choices]
+    ans = strsplit(sol$value,"")[[1]]
+    correct[ans] = TRUE
+    sol$sol = correct
+    return(sol)
+  }
+
   if ("min" %in% fields | "max" %in% fields) {
     sol$type = "numeric"
   }

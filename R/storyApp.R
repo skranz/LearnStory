@@ -2,7 +2,7 @@ example = function() {
   story.dir = "C:/libraries/LearnStory/muenster/umwelt"
   img.dir = "C:/libraries/LearnStory/muenster/img"
 
-  app = storyApp(story.dir, img.dir, start_pageid = "40")
+  app = storyApp(story.dir, img.dir, start_pageid = "2001")
   viewApp(app)
 
 }
@@ -49,7 +49,8 @@ storyApp = function(story.dir, img.dir, title="Münster Escape", start_pageid=NU
 }
 
 story_app_handlers = function(app=getApp()) {
-  eventHandler("imgAreaClick","imgAreaClick",image_area_click)
+  eventHandler("ls_click","imgAreaClick",image_area_click)
+  eventHandler("ls_click","last_text_click",last_text_click)
   if (app$glob$develop) {
     customEventHandler("refresh",fun = function(...) {set_page()},css.locator = "#refreshBtn",event = "click")
     customEventHandler("showSource",show_source,css.locator = "#showSourceBtn",event = "click")
@@ -64,31 +65,43 @@ image_area_click = function(value,...) {
   set_page(next_pageid)
 }
 
+last_text_click = function(..., app=getApp()) {
+  restore.point("last_text_click")
+  page = app$page
+  if (is.null(page[["next"]])) return()
+  next_pageid = page[["next"]]
+  set_page(next_pageid)
+}
+
 get_story_pages = function(story.dir) {
   restore.point("get_story_pages")
   setwd(story.dir)
-  files = list.files(story.dir, "^[0-9]+.*\\.md$")
+  files = list.files(story.dir, glob2rx("*.md"), recursive = TRUE)
 
-
-
-  pages = tibble(pageid = tools::file_path_sans_ext(files), page.file = file.path(story.dir,files))
-  pages$pagenum = as.integer(str.left.of(pages$pageid,"_"))
-
+  pages = tibble(pageid = tools::file_path_sans_ext(files), page.file = file.path(story.dir,files), sub.dir = str.left.of(files, "/", not.found = rep("", length(files))), pagebase = basename(files))
   pages
 }
 
-pageid_to_num = function(pageid) {
-  if (is.integer(pageid)) return(pageid)
-  as.integer(str.left.of(pageid,"_"))
+
+get_page = function(pageid, pages = getApp()$glob$pages) {
+  restore.point("get_page")
+  if (has.substr(pageid,"/")) {
+    row = which(startsWith(pages$pageid,pageid))
+  } else {
+    row = which(startsWith(pages$pagebase,pageid))
+  }
+  if (length(row)==0) {
+    stop(paste0("Could not find page ", pageid))
+  }
+  row = first(row)
+  as.list(pages[row,])
 }
 
 set_page = function(pageid=app$page$pageid, app=getApp(), text_num=1) {
   restore.point("set_page")
   glob = app$glob
-  pages = glob$pages
-  pagenum = pageid_to_num(pageid)
 
-  page = as.list(pages[pages$pagenum == pagenum,])
+  page = get_page(pageid)
   spage = parse_story_page(page$page.file, glob$img.dir)
 
   page = c(page, spage)
@@ -98,10 +111,14 @@ set_page = function(pageid=app$page$pageid, app=getApp(), text_num=1) {
   page$textdiv_id = "textdiv"
 
   text.df = page$text.df
-  i=1
+
   if (NROW(text.df)==1) {
+    i=1
     page$text = text.df$html[[1]]
     page$text_type = text.df$type[[1]]
+    if (text.df$wide[[i]]) {
+      page[["text_class"]] = paste0("wide ", page[["text_class"]])
+    }
     page$textdiv = rmdtools::replace.whiskers(glob$text.frag, page, eval=FALSE)
   } else if (NROW(text.df)>1) {
     text_divs = lapply(seq_len(NROW(text.df)), function(i) {
@@ -110,9 +127,12 @@ set_page = function(pageid=app$page$pageid, app=getApp(), text_num=1) {
       page$text_type = text.df$type[[i]]
       page[["text_class"]] = case_when(
         i==1 ~ "click-text",
-        i <NROW(text.df) ~ "click-text hide-me",
+        i <NROW(text.df) | !is.null(page[["next"]]) ~ "click-text hide-me",
         i==NROW(text.df) ~ "hide-me"
       )
+      if (text.df$wide[[i]]) {
+        page[["text_class"]] = paste0("wide ", page[["text_class"]])
+      }
 
       rmdtools::replace.whiskers(glob$text.frag, page, eval=FALSE)
     })
