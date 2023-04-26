@@ -1,4 +1,10 @@
 Name: Show page
 Description: Shows the currently open page md file
-Binding: show_md_page
+Binding: addin_show_md_page
 Interactive: true
+
+Name: GPT Prompt
+Description: Based on the open md file generate GPT prompt and copy to clipboard
+Binding: addin_make_gpt_prompt
+Interactive: false
+

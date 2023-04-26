@@ -16,7 +16,8 @@ parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story
     p = insert.into.list(p, ex_li, ex_row, overwrite.pos = TRUE)
   }
 
-  default_page = get_page("defaults")
+  default_page = NULL
+  try(default_page <- get_page("defaults"), silent=TRUE)
   if (!is.null(default_page)) {
     def_txt = readUtf8(default_page$page.file)
     defaults = parse.page.md(def_txt)
@@ -52,9 +53,23 @@ parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story
     )
   }
 
+
+
+
   inds = which(fields %in% c("text","question"))
 
   txt = unlist(p[inds]) %>% trimws()
+
+  # If no text element follows a question
+  # generate one that contains the text shown under
+  # correct
+  if (isTRUE(fields[max(inds)] == "question")) {
+    fields = c(fields, "text")
+    inds = c(inds, NROW(fields))
+    txt = c(txt, "{{correct}}")
+  }
+
+
 
   html = rep("", length(inds))
   rows = fields[inds] %in% c("text")
@@ -68,12 +83,9 @@ parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story
     vals = list(
       question = rmdtools::md2html(p$question, fragment.only = TRUE)
     )
-    cat(rmdtools::replace.whiskers(app$glob$question.frag, vals, eval=FALSE))
+    #cat(rmdtools::replace.whiskers(app$glob$question.frag, vals, eval=FALSE))
     rmdtools::replace.whiskers(app$glob$question.frag, vals, eval=FALSE)
   })
-
-
-
 
   p$text.df = tibble(pos = seq_along(inds), type = fields[inds], txt = txt, html=html, wide=nchar(txt)>700)
 
@@ -81,11 +93,10 @@ parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story
     p$text.df$wide[p$text.df$type == "question"]= TRUE
   }
 
+
   question.row = which(p$text.df$type=="question")
 
   p = add_page_hidden_html(p)
-
-  p$show_correct =
   p
 }
 
@@ -96,7 +107,7 @@ add_page_hidden_html = function(page) {
            startsWith(names(page), "help")
 
   hidden = which(hidden)
-  if (length(hidden)==0) return("")
+  if (length(hidden)==0) return(page)
 
   fields = names(page)[hidden]
 
@@ -167,6 +178,7 @@ parse_md_solution = function(str) {
     sol$sol = correct
     return(sol)
   }
+
 
   if ("min" %in% fields | "max" %in% fields) {
     sol$type = "numeric"
