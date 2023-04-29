@@ -50,6 +50,26 @@ $(document).on("click",".text-div",function(evt) {
 
 });
 
+
+$(document).on("click",".abc-item",function(evt) {
+  var el = evt.currentTarget;
+  var id = el.id;
+  var answer = $("#input-text").val();
+  var item = id.substr(4,1);
+
+  if (!$(el).hasClass("abc-active")) {
+    $(el).addClass("abc-active");
+
+    if (!answer.includes(item)) {
+      $("#input-text").val(answer+item);
+    }
+  } else {
+    $(el).removeClass("abc-active");
+    $("#input-text").val(answer.replace(item,''));
+  }
+	evt.stopPropagation();
+});
+
 function show_next_text(was_click = false) {
   var text_divs = $(".text-div");
   var i = 0;

@@ -1,13 +1,14 @@
 example = function() {
   story.dir = "C:/libraries/LearnStory/muenster/umwelt"
   img.dir = "C:/libraries/LearnStory/muenster/img"
+  user.dir = file.path(story.dir, "users")
 
-  app = storyApp(story.dir, img.dir, start_pageid = "2001")
-  viewApp(app)
+  app = storyApp(story.dir, img.dir, user.dir, start_pageid = "1_30")
+  viewApp(app,url.args = list(u="H349ajndewz6"))
 
 }
 
-storyApp = function(story.dir, img.dir, title="Münster Escape", start_pageid=NULL, develop=TRUE) {
+storyApp = function(story.dir, img.dir, user.dir=NULL, title="Münster Escape", start_pageid=NULL, develop=TRUE) {
   restore.point("storyApp")
   app=eventsApp(add.events = NULL)
 
@@ -29,9 +30,17 @@ storyApp = function(story.dir, img.dir, title="Münster Escape", start_pageid=NU
 
   glob$question.frag = readUtf8(file.path(frag.dir, "question_frag.html")) %>% merge.lines()
 
+  glob$user.dir = user.dir
+  if (!is.null(user.dir)) {
+    glob$userids = list.files(glob$user.dir)
+  } else {
+    glob$userids = NULL
+  }
+
   app$ui = tagList(
     tags$title(title),
     tags$head(HTML(head.html)),
+    cookiesHeader(),
     includeCSS(file.path(story.dir,"/story.css")),
     if (develop) {
       sidebarLayout(uiOutput("developUI"), uiOutput("mainUI"))
@@ -42,10 +51,47 @@ storyApp = function(story.dir, img.dir, title="Münster Escape", start_pageid=NU
 
   if (is.null(start_pageid))
     start_pageid = glob$pages$pageid[1]
-
-  set_page(start_pageid)
   story_app_handlers()
+
+  loadPageCookiesHandler(fun= function(cookies,...) {
+    init_story_app(cookies, start_pageid)
+  })
+
+
   app
+}
+
+
+init_story_app = function(cookies=NULL, start_pageid=NULL, app=getApp(), glob=app$glob) {
+  query <- parseQueryString(app$session$clientData$url_search)
+  cat("query: ", app$session$clientData$url_search)
+  restore.point("init_story_app")
+
+  # Don't specify a user if start_pageid is provided
+  if (!is.null(start_pageid)) {
+    app$user = NULL
+    set_page(start_pageid)
+    return()
+  }
+
+  userid = query$u
+
+  # No useris specified
+  if (is.null(userid)) {
+    app$new_user = TRUE
+    userid = random.string(1,14)
+  }
+
+  if (userid %in% glob$userids) {
+    app$user = load_user(userid)
+    pageid = app$user$max_pageid
+  } else {
+    app$user = list(userid=userid, cur_pageid = "", max_pageid="")
+    pageid = ""
+  }
+
+  set_page(pageid)
+
 }
 
 story_app_handlers = function(app=getApp()) {
@@ -173,4 +219,26 @@ show_source = function(..., app=getApp()) {
   restore.point("show_source")
   page = app$page
   rstudioapi::navigateToFile(page$page.file)
+}
+
+load_user = function(userid, user.dir =getApp()$glob$userdir) {
+  file = file.path(user.dir,userid)
+  txt = readLines(file)
+  user = list(userid, cur_pageid = txt[1], max_pageid = txt[2])
+}
+
+update_user = function(user=app$user, pageid = app$pageid, app=getApp(), glob=app$glob) {
+  user$cur_pageid = pageid
+  cur_row = which(glob$pages$pageid == user$cur_pageid)
+  max_row = which(glob$pages$pageid == user$max_pageid)
+
+  if (!isTRUE(max_row > cur_row)) {
+    user$max_pageid = user$cur_pageid
+  }
+
+  file = file.path(user.dir,user$userid)
+  writeLines(c(user$cur_pageid,user$max_pageid), file)
+
+  app$user = user
+  invisible(user)
 }

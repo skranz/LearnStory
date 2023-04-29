@@ -54,6 +54,10 @@ parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story
   }
 
 
+  if (isTRUE(p$solution$type=="abc")) {
+    p$question = mark_abc_question_items(p$question, p$solution$num_choices)
+  }
+
 
 
   inds = which(fields %in% c("text","question"))
@@ -209,5 +213,38 @@ parse_areas = function(str) {
 
 
   areas
+
+}
+
+mark_abc_question_items = function(question, num_choices) {
+  restore.point("mark_abc_question_items")
+  txt = sep.lines(question,"\n")
+  trim = c(trimws(txt),"")
+
+  item.rows = which(grepl("^[a-z]\\)", trim))
+  empty.rows = which(trim=="")
+
+  items = substr(trim[item.rows],1,1)
+
+  if (!identical(items, letters[seq_len(num_choices)]) ) {
+    cat("\nCould not detect a), b) items from abc question.")
+    return(merge.lines(question))
+  }
+
+  #space = ifelse(trim[lead(c(item.rows, length(trim)))-1]=="","<br>","")[seq_along(item.rows)]
+
+  start.rows = item.rows
+  end.rows = lead(item.rows-1)
+  if (any(empty.rows)>max(item.rows)) {
+    end.rows[length(end.rows)] = min(empty.rows[empty.rows>start.rows])
+  } else {
+    end.rows[length(end.rows)] = length(txt)
+  }
+
+  txt[start.rows] = paste0('<div class="abc-item" id="abc-',items,'">', txt[start.rows])
+  txt[end.rows] = paste0(txt[end.rows] ,'</div>')
+  #txt[item.rows] = paste0('<div class="abc-item" id="abc-',items,'">', txt[item.rows] ,'</div>')
+  question = merge.lines(txt)
+  question
 
 }
