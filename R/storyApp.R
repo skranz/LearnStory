@@ -218,6 +218,7 @@ show_develop = function(app=getApp()) {
 show_source = function(..., app=getApp()) {
   restore.point("show_source")
   page = app$page
+  if (is.null(page)) page = app$quiz
   rstudioapi::navigateToFile(page$page.file)
 }
 

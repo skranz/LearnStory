@@ -13,6 +13,10 @@ insert.into.list = function(org.li, insert.li, pos, overwrite.pos=FALSE) {
 
 }
 
+has.field = function(x, fields) {
+  fields %in% names(x)
+}
+
 set.null.fields = function(x, fields, default) {
   for (field in fields) {
     if (is.null(x[[field]]))

@@ -42,24 +42,11 @@ parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story
     p$img_map = ""
   }
 
+  p = parse_quiz_elements(p)
+
+  p = prepare_page_quiz(p)
+
   fields = names(p)
-
-  if (!is.null(p[["solution"]])) {
-    p$solution = parse_md_solution(p$solution)
-
-
-    p$script = paste0(p$script, "\n",
-      "var solution = ", toJSON(p$solution,auto_unbox = TRUE),";\n"
-    )
-  }
-
-
-  if (isTRUE(p$solution$type=="abc")) {
-    p$question = mark_abc_question_items(p$question, p$solution$num_choices)
-  }
-
-
-
   inds = which(fields %in% c("text","question"))
 
   txt = unlist(p[inds]) %>% trimws()
@@ -93,16 +80,50 @@ parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story
 
   p$text.df = tibble(pos = seq_along(inds), type = fields[inds], txt = txt, html=html, wide=nchar(txt)>700)
 
-  if (isTRUE(p$solution$type=="abc")) {
+  if (isTRUE(p$quiz_type=="abc")) {
     p$text.df$wide[p$text.df$type == "question"]= TRUE
   }
-
 
   question.row = which(p$text.df$type=="question")
 
   p = add_page_hidden_html(p)
   p
 }
+
+parse_quiz_page = function(page.file, app=getApp(), quiz.dir  = glob$quiz.dir, glob=getApp()$glob) {
+
+  restore.point("parse_quiz_page")
+  txt = readUtf8(page.file)
+  p = parse.page.md(txt)
+
+  default.file = file.path(quiz.dir, "defaults.md")
+  if (file.exists(default.file)) {
+    defaults = parse.yaml.md.file(default.file)
+    fields = setdiff(names(defaults), names(p))
+    p[fields] = defaults[fields]
+  }
+
+  if (!is.null(p[["solution"]])) {
+    p$solution = parse_md_solution(p$solution)
+
+
+    p$script = paste0(p$script, "\n",
+      "var solution = ", toJSON(p$solution,auto_unbox = TRUE),";\n"
+    )
+  }
+
+  if (isTRUE(p$solution$type=="abc")) {
+    p$question = mark_abc_question_items(p$question, p$solution$num_choices)
+  }
+
+
+  p$question.txt  = p$question
+  p$question = md2html(p$question, fragment.only=TRUE)
+
+  p = add_page_hidden_html(p)
+  p
+}
+
 
 add_page_hidden_html = function(page) {
   restore.point("add_page_hidden_html")
@@ -144,17 +165,22 @@ parse_img_map = function(html, links=NULL) {
   list(map.html = merge.lines(html), areas=title)
 }
 
+parse.yaml.md.file = function(file) {
+  txt = readUtf8(file)
+  parse.page.md(txt)
+}
+
 parse.page.md = function(txt, hashdot = "#. ",...) {
   restore.point("parse.page.md")
   if (length(txt)==1) txt = sep.lines(txt)
   df = split.text.in.startline.blocks(txt, start.with = hashdot)
   li = list()
 
-  has.start = isTRUE(df$head[[1]] == "START")
+  has.start = isTRUE(df$head[[1]] == "START" | df$head[[1]]=="")
   if (has.start) {
     start.txt = df$inner[1]
     if (nchar(start.txt)>0) {
-      li = read.yaml(text = start.txt)
+      li = yaml.load(start.txt)
     }
   }
   if (NROW(df)>as.integer(has.start)) {
@@ -170,25 +196,6 @@ parse.page.md = function(txt, hashdot = "#. ",...) {
   li
 }
 
-parse_md_solution = function(str) {
-  restore.point("parse_md_solution")
-  sol = yaml.load(str)
-  fields = names(sol)
-  if (isTRUE(sol$type=="abc")) {
-    correct = rep(FALSE, sol$num_choices)
-    names(correct) = letters[1:sol$num_choices]
-    ans = strsplit(sol$value,"")[[1]]
-    correct[ans] = TRUE
-    sol$sol = correct
-    return(sol)
-  }
-
-
-  if ("min" %in% fields | "max" %in% fields) {
-    sol$type = "numeric"
-  }
-  sol
-}
 
 parse_areas = function(str) {
   restore.point("parse_areas")
@@ -216,35 +223,198 @@ parse_areas = function(str) {
 
 }
 
-mark_abc_question_items = function(question, num_choices) {
-  restore.point("mark_abc_question_items")
-  txt = sep.lines(question,"\n")
-  trim = c(trimws(txt),"")
 
-  item.rows = which(grepl("^[a-z]\\)", trim))
-  empty.rows = which(trim=="")
+parse_quiz_elements = function(p) {
+  restore.point("parse_quiz_elements")
 
-  items = substr(trim[item.rows],1,1)
+  p$has_quiz = !is.null(p[["question"]]) | !is.null(p[["statements"]])
 
-  if (!identical(items, letters[seq_len(num_choices)]) ) {
-    cat("\nCould not detect a), b) items from abc question.")
-    return(merge.lines(question))
+  if (!p$has_quiz) return(p)
+
+  if (!is.null(p[["solution"]])) {
+    sol = yaml.load(p$solution)
+  } else {
+    sol = list()
+  }
+  p$solution = sol
+
+  qu_text = sep.lines(p$question)
+  if (!is.null(sol$type)) {
+    p$quiz_type = sol$type
+  } else if ("statements" %in% names(p)) {
+    p$quiz_type = "statements"
+  } else if (any(c("min","max") %in% names(sol))) {
+    p$quiz_type = "numeric"
+  } else if (any(startsWith(qu_text,"a)"))) {
+    p$quiz_type = "abc"
+  } else {
+    p$quiz_type = ""
+  }
+  p$solution$type = p$quiz_type
+
+  if (!p$quiz_type %in% c("statements","abc","numeric")) {
+    stop("Could not detect quiz type 'statements', 'abc' or 'numeric'")
   }
 
-  #space = ifelse(trim[lead(c(item.rows, length(trim)))-1]=="","<br>","")[seq_along(item.rows)]
+  if (p$quiz_type == "abc") {
+    res = parse_quiz_items(p$question,modes="abc")
+    p$question_head = res$head
+    p$question_tail = res$tail
+    p$item.df = res$item.df
+  } else if (p$quiz_type == "statements") {
+    res = parse_quiz_items(p$statements,modes="abc")
+    p$question_head = p$question
+    p$question_tail = ""
+    p$item.df = res$item.df
+  }
+
+  p
+}
+
+
+# Sample quiz questions and then perform
+# all preparations
+prepare_page_quiz = function(p) {
+  restore.point("prepare_page_quiz")
+  if (!p$has_quiz) return(p)
+
+  if (p$quiz_type == "numeric") {
+    p$script = paste0(p$script, "\n",
+      "var solution = ", toJSON(p$solution,auto_unbox = TRUE),";\n"
+    )
+    return(p)
+  }
+
+  # Sample question items
+  item.df = p$item.df
+
+  has_abc = first(item.df$org_abc != "")
+
+  abc = item.df$org_abc
+  stratified = has_abc & any(duplicated(abc))
+
+  if (p$quiz_type == "abc") {
+    num_choices = length(unique(abc))
+  } else {
+    num_choices = first.non.null(p$solution$num_choices, 4)
+  }
+
+  if (!stratified) {
+    rows = sample(1:NROW(item.df), num_choices, replace=FALSE)
+    sample.df = item.df[rows,]
+  } else if (stratified) {
+    sample_abc = sample(unique(abc), num_choices)
+    sample.df = item.df[item.df$org_abc %in% sample_abc,]
+    sample.df$prio = sample.int(NROW(sample.df))
+    sample.df = sample.df %>%
+      group_by(org_abc) %>%
+      filter(prio == max(prio)) %>%
+      ungroup() %>%
+      select(-prio)
+    rows = sample.int(NROW(sample.df))
+    sample.df = sample.df[rows,]
+  }
+  sample.df$pos = 1:NROW(sample.df)
+  sample.df$abc = letters[sample.df$pos]
+
+
+  # Create item div
+  sample.df = sample.df %>%
+    mutate(
+      div = paste0('<div class="abc-item" id="abc-',abc,'">', abc,") ", item, "</div>")
+    )
+
+  # Recreate question
+
+  p$question = paste0(
+    p$question_head,
+    paste0(sample.df$div, collapse="\n"),
+    p$question_tail
+  )
+
+  question = merge.lines(txt)
+  question
+
+  p$solution$value = paste0(sample.df$abc[sample.df$correct])
+  p$solution$type = p$quiz_type
+  p$solution$num_choices = NROW(sample.df)
+
+
+  correct = rep(sample.df$correct)
+  names(correct) = sample.df$abc
+  p$solution$correct = correct
+
+  p$sample.df = sample.df
+
+  p$script = paste0(p$script, "\n",
+    "var solution = ", toJSON(p$solution,auto_unbox = TRUE),";\n"
+  )
+
+  return(p)
+}
+
+
+parse_quiz_items = function(txt, modes = c("abc","-")) {
+  restore.point("parse_quiz_items")
+  txt = sep.lines(txt,"\n")
+  trim = c(trimws(txt),"")
+
+  abc.item.rows = which(grepl("^[a-z]\\)", trim))
+  hyphen.item.rows = which(startsWith(trim, "-"))
+
+  if (length(modes)>=2) {
+    mode = ifelse(length(abc.item.rows)>length(hyphen.item.rows), "abc","-")
+  } else {
+    mode = modes
+  }
+
+
+
+  if (mode =="abc") {
+    item.rows = abc.item.rows
+    abc = substr(trim[item.rows],1,1)
+    trim[item.rows] = trimws(substring(trim[item.rows],3))
+  } else {
+    item.rows = hypthen.item.rows
+    trim[item.rows] = trimws(substr(trim[item.rows],2))
+    abc = ""
+  }
+  empty.rows = which(trim=="")
 
   start.rows = item.rows
   end.rows = lead(item.rows-1)
-  if (any(empty.rows)>max(item.rows)) {
-    end.rows[length(end.rows)] = min(empty.rows[empty.rows>start.rows])
+  if (any(empty.rows>max(start.rows))) {
+    end.rows[length(end.rows)] = min(empty.rows[empty.rows>max(start.rows)])
   } else {
     end.rows[length(end.rows)] = length(txt)
   }
 
-  txt[start.rows] = paste0('<div class="abc-item" id="abc-',items,'">', txt[start.rows])
-  txt[end.rows] = paste0(txt[end.rows] ,'</div>')
-  #txt[item.rows] = paste0('<div class="abc-item" id="abc-',items,'">', txt[item.rows] ,'</div>')
-  question = merge.lines(txt)
-  question
+  info = rep("", length(item.rows))
+  info.rows = which(startsWith(trim, "info: "))
+  for (ii in seq_along(info.rows)) {
+    irow = info.rows[ii]
+    i = which(start.rows < irow & end.rows >= irow)
+    info[i] = merge.lines(trim[irow:end.rows[i]]) %>% trimws() %>% substring(7)
+    end.rows[i] = irow-1
+  }
 
+  items = sapply(seq_along(start.rows), function(i) {
+    trimws(merge.lines(trim[start.rows[i]:end.rows[i]]))
+  })
+
+  correct = endsWith(items,"*")
+  items[correct] = str.remove.ends(items[correct], right=1)
+
+  item.df = tibble(org_pos= seq_along(items), org_abc=abc, correct=correct, item=items, info=info)
+
+  head = tail = ""
+  if (start.rows[1] > 1) {
+    head = merge.lines(txt[1:(start.rows[1]-1)])
+  }
+  if (last(end.rows)< length(txt)) {
+    tail = merge.lines(txt[(last(end.rows)+1):length(txt)])
+  }
+
+  list(item.df=item.df, head=head, tail=tail)
 }
+

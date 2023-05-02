@@ -1,0 +1,25 @@
+<div id="quiz" class="quiz-container" style="margin: 1em">
+  <h4 class="quiz-header">{{quiz_title}}</h4>
+  {{question}}
+
+  <input class = "quiz-input" type="text" id="input-text" name="input-text">
+  <div id="show_wrong" class="hide-me wrong"></div>
+  <div id="show_correct" class="hide-me correct"></div>
+  <br>
+  <button id="btn-sol" class="parchment-btn">Sende Lösung</button>
+  <button id="btn-jump" class="hide-me parchment-btn">Frage überspringen</button>
+  <button id="btn-next" class="hide-me parchment-btn">Weiter</button>
+</div>
+
+<script>
+
+var page_status = "s"
+
+{{script}}
+
+</script>
+
+<div id="hidden-elements" style="display:none">
+  {{hidden_html}}
+</div>
+
