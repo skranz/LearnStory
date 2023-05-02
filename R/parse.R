@@ -80,13 +80,15 @@ parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story
 
   p$text.df = tibble(pos = seq_along(inds), type = fields[inds], txt = txt, html=html, wide=nchar(txt)>700)
 
-  if (isTRUE(p$quiz_type=="abc")) {
+  if (isTRUE(p$quiz_type %in% c("abc","statements"))) {
     p$text.df$wide[p$text.df$type == "question"]= TRUE
   }
 
   question.row = which(p$text.df$type=="question")
 
   p = add_page_hidden_html(p)
+
+
   p
 }
 
@@ -131,10 +133,15 @@ add_page_hidden_html = function(page) {
            startsWith(names(page), "wrong") |
            startsWith(names(page), "help")
 
+
   hidden = which(hidden)
   if (length(hidden)==0) return(page)
 
   fields = names(page)[hidden]
+  correct_fields = fields[startsWith(fields,"correct")]
+  if (length(correct_fields)>0 & !is.null(page$add_correct)) {
+    page[correct_fields] = as.list(paste0(page[correct_fields],"\n\n", page$add_correct))
+  }
 
   page[hidden] = lapply(page[hidden],rmdtools::md2html, fragment.only=TRUE)
 
@@ -332,9 +339,6 @@ prepare_page_quiz = function(p) {
     p$question_tail
   )
 
-  question = merge.lines(txt)
-  question
-
   p$solution$value = paste0(sample.df$abc[sample.df$correct])
   p$solution$type = p$quiz_type
   p$solution$num_choices = NROW(sample.df)
@@ -349,6 +353,11 @@ prepare_page_quiz = function(p) {
   p$script = paste0(p$script, "\n",
     "var solution = ", toJSON(p$solution,auto_unbox = TRUE),";\n"
   )
+
+  rows = which(sample.df$info != "")
+  if (NROW(rows)>0) {
+    p$add_correct = paste0(" zu ", sample.df$abc[rows],") ", sample.df$info[rows],collapse="\n\n")
+  }
 
   return(p)
 }

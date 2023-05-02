@@ -2,7 +2,7 @@
 function check_sol(answer, sol) {
   var type = sol.type;
 
-  if (type === "abc") {
+  if (type === "abc" | type === "statements") {
     return check_abc_sol(answer, sol);
   }
 
@@ -46,11 +46,11 @@ function check_sol(answer, sol) {
 }
 
 
-function check_abc_sol(ans, solutions) {
+function check_abc_sol(ans, sol) {
   // initialize an object to store the result
   let result = {ok: false, type: "abc", num_correct: 0, num_choices: solution.num_choices};
   let letters = "abcdefghijklmnopqrstuvwxyz";
-  let is_correct = solution.sol;
+  let is_correct = sol.correct;
 
   for (var i=0; i < solution.num_choices; i++) {
     var letter = letters[i];
