@@ -7,6 +7,11 @@ $(document).on("click","#btn-sol",function(evt) {
     show_wrong(check);
   }
 
+	Shiny.onInputChange("answer_click",
+	  {eventId: "answer_click",id: "answer_click", value: {answer: answer, check: check}, nonce: Math.random()}
+	);
+
+
 });
 
 
@@ -67,5 +72,6 @@ function replace_whiskers(str, obj) {
   // Use a regular expression to match fields in {{ }} format
   var regex = /{{(\w+)}}/g;
   // Use replaceAll method to replace matches with object values or original match
-  return str.replaceAll(regex, (match, key) => String(obj[key]) || match);
+  return str.replace(regex, (match, key) => String(obj[key]) || match);
+  //return str.replaceAll(regex, (match, key) => String(obj[key]) || match);
 }

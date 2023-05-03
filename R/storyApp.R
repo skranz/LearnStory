@@ -16,6 +16,7 @@ storyApp = function(story.dir, img.dir, user.dir=NULL, title="Münster Escape", 
   shiny::addResourcePath("js", system.file("js", package="LearnStory"))
 
   glob = app$glob
+  glob$origin = "s"
   glob$develop = develop
   glob$story.dir = story.dir
   glob$img.dir = img.dir

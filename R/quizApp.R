@@ -1,21 +1,29 @@
 example = function() {
   quiz.dir = "C:/libraries/LearnStory/muenster/umwelt"
 
-  app = quizApp(quiz.dir)
-  viewApp(app,url.args = list(u="H349ajndewz6"))
+  app = quizApp(quiz.dir, pageid="q1_06")
+  viewApp(app,url.args = list(u="test"))
 
 }
 
-quizApp = function(quiz.dir, develop=TRUE) {
+quizApp = function(quiz.dir, db.dir = quiz.dir, pageid=NULL, develop=TRUE, userid = NULL) {
   restore.point("quizApp")
   app=eventsApp()
 
-
   shiny::addResourcePath("js", system.file("js", package="LearnStory"))
-
   glob = app$glob
   glob$develop = develop
   glob$quiz.dir = quiz.dir
+  glob$userid = userid
+  glob$pageid = pageid
+  glob$origin = "q"
+
+
+  glob$db.dir = db.dir
+  glob$use.db = !is.null(db.dir)
+  if (glob$use.db) {
+    db = get.quizdb(db.dir)
+  }
 
   spec = parse.yaml.md.file(file.path(quiz.dir, "spec_quiz.md"))
   copy.into.env(spec, glob)
@@ -41,6 +49,7 @@ quizApp = function(quiz.dir, develop=TRUE) {
   )
   quiz_app_handlers()
 
+
   loadPageCookiesHandler(fun= function(cookies,...) {
     init_quiz_app(cookies)
   })
@@ -53,6 +62,24 @@ init_quiz_app = function(cookies=NULL, app=getApp(), glob=app$glob) {
   query <- parseQueryString(app$session$clientData$url_search)
   cat("query: ", app$session$clientData$url_search)
   restore.point("init_quiz_app")
+
+  userid = first.non.null(query$u, glob$userid)
+
+  # No userid specified
+  if (is.null(userid)) {
+    app$new_user = TRUE
+    userid = random.string(1,8)
+  }
+  app$userid = userid
+
+  if (!is.null(glob$pageid)) {
+    quiz.df = choose_single_quiz(glob$pageid, glob$pages)
+    app$quiz.df = quiz.df
+    app$qnum = 1
+    set_quiz_page()
+    return()
+  }
+
   set_quiz_menu_ui()
 }
 
@@ -75,6 +102,7 @@ set_quiz_menu_ui = function(app=getApp(), glob=app$glob) {
 quiz_app_handlers = function(app=getApp()) {
   buttonHandler("startQuizBtn", start_quiz_click)
   buttonHandler("btn-next", next_quiz_click)
+  eventHandler("answer_click","answer_click",answer_quiz_click)
 
   if (app$glob$develop) {
     buttonHandler("refreshBtn",set_quiz_page)
@@ -101,6 +129,12 @@ get_quiz_pages = function(glob=getApp()$glob) {
   pages
 }
 
+choose_single_quiz = function(pageid, pages=getApp()$glob$pages) {
+  restore.point("choose_single_qui")
+  page = get_page(pageid, pages)
+  quiz.df = pages[pages$pagebase == page$pagebase,]
+  quiz.df
+}
 
 choose_quizes = function(num_questions, chapters, pages=getApp()$glob$pages) {
   restore.point("choose_quizes")
@@ -175,3 +209,50 @@ show_quiz_develop = function(app=getApp()) {
   setUI("developUI",ui)
 }
 
+answer_quiz_click = function(value, ...) {
+  args = list(...)
+  restore.point("answer_quiz_click")
+  log.answer(value$answer, value$check)
+
+}
+
+log.answer = function(answer, check, app=getApp()) {
+
+  restore.point("log.answer")
+
+  if (!isTRUE(app$glob$use.db)) return()
+
+  origin = app$glob$origin
+
+  if (origin == "q") {
+    quiz = app$quiz
+  } else {
+    quiz = app$page
+  }
+
+  if (quiz$quiz_type=="numeric") {
+    orgpos = ""
+  } else {
+    orgpos = paste0(quiz$sample.df$org_pos, collapse=";")
+
+    # Check which of the statements a) b) was correctly
+    # classified
+    correct = quiz$solution$correct
+    ans.correct = sapply(names(correct), function(char) has.substr(answer, char) == correct[char]) %>% as.integer %>% paste0(collapse="")
+    answer = ans.correct
+  }
+
+  log = list(
+    userid = app$userid,
+    quizid = quiz$quizid,
+    ok = check$ok,
+    orgpos = orgpos,
+    answer = answer,
+    origin = origin,
+    time = Sys.time()
+  )
+
+  db = get.quizdb()
+  dbInsert(db, "answer", log)
+
+}

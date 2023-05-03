@@ -14,6 +14,9 @@ parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story
     ex_txt = readUtf8(ex_page$page.file)
     ex_li = parse.page.md(ex_txt)
     p = insert.into.list(p, ex_li, ex_row, overwrite.pos = TRUE)
+    p$quizid = tools::file_path_sans_ext(ex_id)
+  } else {
+    p$quizid = tools::file_path_sans_ext(basename(page.file))
   }
 
   default_page = NULL
@@ -43,7 +46,6 @@ parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story
   }
 
   p = parse_quiz_elements(p)
-
   p = prepare_page_quiz(p)
 
   fields = names(p)
@@ -105,24 +107,15 @@ parse_quiz_page = function(page.file, app=getApp(), quiz.dir  = glob$quiz.dir, g
     p[fields] = defaults[fields]
   }
 
-  if (!is.null(p[["solution"]])) {
-    p$solution = parse_md_solution(p$solution)
-
-
-    p$script = paste0(p$script, "\n",
-      "var solution = ", toJSON(p$solution,auto_unbox = TRUE),";\n"
-    )
-  }
-
-  if (isTRUE(p$solution$type=="abc")) {
-    p$question = mark_abc_question_items(p$question, p$solution$num_choices)
-  }
-
+  p = parse_quiz_elements(p)
+  p = prepare_page_quiz(p)
 
   p$question.txt  = p$question
   p$question = md2html(p$question, fragment.only=TRUE)
 
   p = add_page_hidden_html(p)
+  p$quizid = tools::file_path_sans_ext(basename(page.file))
+
   p
 }
 

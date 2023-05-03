@@ -1,12 +1,11 @@
 Package: LearnStory
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Framework for pre-defined quizzes (story based or as quiz app)
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Author: Sebastian Kranz
+Maintainer: Sebastian Kranz <sebastian.kranz@uni-ulm.de>
+Description: 
 License: GPL >= 2.0
-Depends: shinyEvents, rmdtools, yaml, rstudioapi, jsonlite
+Depends: shinyEvents, rmdtools, yaml, rstudioapi, jsonlite, dbmisc, dplyr
 Encoding: UTF-8
 LazyData: true

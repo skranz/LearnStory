@@ -1,3 +1,12 @@
+random.string = function(n=1,nchar=8) {
+  first = sample(c(letters,LETTERS),n, replace = TRUE)
+  chars = sample(c(letters,LETTERS, 0:9),(nchar-1)*n, replace = TRUE)
+  if (n == 1) return(paste0(first, chars, collapse=""))
+  mat = as.data.frame(matrix(c(first,chars), n, nchar))
+  do.call(paste0,mat)
+}
+
+
 insert.into.list = function(org.li, insert.li, pos, overwrite.pos=FALSE) {
   if (overwrite.pos) {
     if (pos<=0) return(c(insert.li, org.li))

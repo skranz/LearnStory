@@ -1,0 +1,14 @@
+# dbCreateSQLiteFromSchema(system.file("schema/quizdb.yaml",package="LearnStory"),db.dir="C:/libraries/LearnStory/muenster/umwelt",update=TRUE)
+
+
+answer:
+  table:
+    userid: TEXT
+    quizid: TEXT
+    ok: BOOLEAN
+    orgpos: TEXT
+    answer: TEXT
+    origin: TEXT # s=story q=quiz
+    time: DATETIME
+  index:
+    - [userid]
