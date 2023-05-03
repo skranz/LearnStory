@@ -12,3 +12,11 @@ answer:
     time: DATETIME
   index:
     - [userid]
+
+quiz_source:
+  table:
+    quizid: TEXT
+    text: TEXT
+    time: DATETIME
+  index:
+    - [quizid, time]
