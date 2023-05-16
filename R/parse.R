@@ -291,6 +291,7 @@ prepare_page_quiz = function(p) {
   has_abc = first(item.df$org_abc != "")
 
   abc = item.df$org_abc
+  keep_order = isTRUE(p$keep_order)
   stratified = has_abc & any(duplicated(abc))
 
   if (p$quiz_type == "abc") {
@@ -299,7 +300,9 @@ prepare_page_quiz = function(p) {
     num_choices = first.non.null(p$solution$num_choices, 4)
   }
 
-  if (!stratified) {
+  if (keep_order) {
+    sample.df = item.df
+  } else if (!stratified) {
     rows = sample(1:NROW(item.df), num_choices, replace=FALSE)
     sample.df = item.df[rows,]
   } else if (stratified) {

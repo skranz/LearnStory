@@ -1,9 +1,10 @@
-# dbCreateSQLiteFromSchema(system.file("schema/quizdb.yaml",package="LearnStory"),db.dir="C:/libraries/LearnStory/muenster/umwelt",update=TRUE)
+# dbCreateSQLiteFromSchema(system.file("schema/quizdb.yaml",package="LearnStory"),db.dir="C:/libraries/LearnStory/umwelt",update=TRUE)
 
 
 answer:
   table:
     userid: TEXT
+    gameid: TEXT
     quizid: TEXT
     ok: BOOLEAN
     orgpos: TEXT
@@ -11,12 +12,28 @@ answer:
     origin: TEXT # s=story q=quiz
     time: DATETIME
   index:
-    - [userid]
+    - [userid, gameid]
 
 quiz_source:
   table:
     quizid: TEXT
+    gameid: TEXT
     text: TEXT
     time: DATETIME
   index:
     - [quizid, time]
+
+story_log:
+  table:
+    userid: TEXT
+    gameid: TEXT
+    pageid: TEXT
+    time: DATETIME
+
+story_progress:
+  table:
+    userid: TEXT
+    gameid: TEXT
+    pageid: TEXT
+  unique_index:
+    - [userid, gameid]

@@ -1,14 +1,17 @@
 example = function() {
-  story.dir = "C:/libraries/LearnStory/muenster/umwelt"
-  img.dir = "C:/libraries/LearnStory/muenster/img"
-  user.dir = file.path(story.dir, "users")
+  restore.point.options(display.restore.point = TRUE)
 
-  app = storyApp(story.dir, img.dir, user.dir, start_pageid = "1_30")
+  story.dir = "C:/libraries/LearnStory/umwelt"
+  img.dir = "C:/libraries/LearnStory/muenster/img"
+
+  #app = storyApp(story.dir, img.dir, userid="test")
+  app = storyApp(story.dir, img.dir)
+  viewApp(app,launch.browser = TRUE)
   viewApp(app,url.args = list(u="H349ajndewz6"))
 
 }
 
-storyApp = function(story.dir, img.dir, user.dir=NULL, title="Münster Escape", start_pageid=NULL, develop=TRUE) {
+storyApp = function(story.dir, img.dir, db.dir = story.dir, title="Münster Escape", start_pageid=NULL, develop=TRUE, gameid = basename(story.dir), userid=NULL) {
   restore.point("storyApp")
   app=eventsApp(add.events = NULL)
 
@@ -16,14 +19,25 @@ storyApp = function(story.dir, img.dir, user.dir=NULL, title="Münster Escape", 
   shiny::addResourcePath("js", system.file("js", package="LearnStory"))
 
   glob = app$glob
+  glob$fixed_userid = userid
   glob$origin = "s"
   glob$develop = develop
   glob$story.dir = story.dir
   glob$img.dir = img.dir
   glob$pages = get_story_pages(story.dir)
+  glob$gameid = app$gameid = gameid
+
+  glob$db.dir = db.dir
+  glob$use.db = !is.null(db.dir)
+  if (glob$use.db) {
+    db = get.quizdb(db.dir)
+  }
 
   frag.dir = system.file("html", package="LearnStory")
   head.html = readLines(file.path(frag.dir, "head_frag.html")) %>% merge.lines()
+  glob$start.page.frag = readUtf8(file.path(story.dir, "story_start.html")) %>% merge.lines()
+
+  glob$continue.page.frag = readUtf8(file.path(story.dir, "story_continue.html")) %>% merge.lines()
 
   glob$container.frag = readUtf8(file.path(frag.dir, "container_frag.html")) %>% merge.lines()
 
@@ -31,17 +45,11 @@ storyApp = function(story.dir, img.dir, user.dir=NULL, title="Münster Escape", 
 
   glob$question.frag = readUtf8(file.path(frag.dir, "question_frag.html")) %>% merge.lines()
 
-  glob$user.dir = user.dir
-  if (!is.null(user.dir)) {
-    glob$userids = list.files(glob$user.dir)
-  } else {
-    glob$userids = NULL
-  }
-
   app$ui = tagList(
     tags$title(title),
     tags$head(HTML(head.html)),
-    cookiesHeader(),
+    #cookiesHeader(onload.cookies = "learn_story_userid"),
+    cookiesHeader(onload.cookies = "learn_story_userid"),
     includeCSS(file.path(story.dir,"/story.css")),
     if (develop) {
       sidebarLayout(uiOutput("developUI"), uiOutput("mainUI"))
@@ -50,11 +58,13 @@ storyApp = function(story.dir, img.dir, user.dir=NULL, title="Münster Escape", 
     }
   )
 
-  if (is.null(start_pageid))
-    start_pageid = glob$pages$pageid[1]
+  #if (is.null(start_pageid))
+  #  start_pageid = glob$pages$pageid[1]
   story_app_handlers()
 
   loadPageCookiesHandler(fun= function(cookies,...) {
+    args = list(...)
+    restore.point("nshdsdsf")
     init_story_app(cookies, start_pageid)
   })
 
@@ -64,44 +74,78 @@ storyApp = function(story.dir, img.dir, user.dir=NULL, title="Münster Escape", 
 
 
 init_story_app = function(cookies=NULL, start_pageid=NULL, app=getApp(), glob=app$glob) {
-  query <- parseQueryString(app$session$clientData$url_search)
-  cat("query: ", app$session$clientData$url_search)
-  restore.point("init_story_app")
+  #base.url = app$session$clientData$url_search
+  #query <- parseQueryString(app$session$clientData$url_search)
+  #cat("query: ", app$session$clientData$url_search)
+  restore.point("story_app")
 
   # Don't specify a user if start_pageid is provided
   if (!is.null(start_pageid)) {
-    app$user = NULL
+    app$userid = NULL
     set_page(start_pageid)
     return()
   }
 
-  userid = query$u
+  app$userid = cookies[["learn_story_userid"]][[1]]
+  cat("\nuserid from cookies: ", app$userid,"\n")
 
-  # No useris specified
-  if (is.null(userid)) {
-    app$new_user = TRUE
-    userid = random.string(1,14)
+
+  if (!is.null(glob$fixed_userid)) {
+    app$userid = glob$fixed_userid
+    setCookie("learn_story_userid",list(userid=app$userid))
   }
 
-  if (userid %in% glob$userids) {
-    app$user = load_user(userid)
-    pageid = app$user$max_pageid
+  app$new.user = is.null(app$userid)
+  if (!is.null(app$userid)) {
+    res = load_story_progress()
+    copy.into.env(res,app)
   } else {
-    app$user = list(userid=userid, cur_pageid = "", max_pageid="")
-    pageid = ""
+    app$userid = random.string(1,14)
+    setCookie("learn_story_userid",list(userid=app$userid))
   }
+  set_start_page()
+}
 
-  set_page(pageid)
-
+set_start_page = function(app=getApp()) {
+  restore.point("set_start_page")
+  glob = app$glob
+  if (isTRUE(app$new.user)) {
+    values = list()
+    html = glob$start.page.frag
+    setUI("mainUI", HTML(html))
+  } else {
+    values = list()
+    html = glob$continue.page.frag
+    setUI("mainUI", HTML(html))
+  }
 }
 
 story_app_handlers = function(app=getApp()) {
   eventHandler("ls_click","imgAreaClick",image_area_click)
   eventHandler("ls_click","last_text_click",last_text_click)
+  eventHandler("ls_click","btn_answer",answer_click)
+  customEventHandler("btn_click",function(id, ...) {
+    if (id == "btn-new-game") {
+      new_game_click()
+    } else if (id=="btn-continue-game") {
+      continue_game_click()
+    }
+  },css.locator = ".menu-btn",event = "click")
   if (app$glob$develop) {
     customEventHandler("refresh",fun = function(...) {set_page()},css.locator = "#refreshBtn",event = "click")
     customEventHandler("showSource",show_source,css.locator = "#showSourceBtn",event = "click")
   }
+}
+
+new_game_click = function(..., app=getApp()) {
+  restore.point("new_game_click")
+  pageid = app$glob$pages$pageid[1]
+  set_page(pageid)
+}
+
+continue_game_click = function(..., app=getApp()) {
+  restore.point("new_game_click")
+  set_page(app$pageid)
 }
 
 image_area_click = function(value,...) {
@@ -144,7 +188,7 @@ get_page = function(pageid, pages = getApp()$glob$pages) {
   as.list(pages[row,])
 }
 
-set_page = function(pageid=app$page$pageid, app=getApp(), text_num=1) {
+set_page = function(pageid=app$pageid, app=getApp(), text_num=1) {
   restore.point("set_page")
   glob = app$glob
 
@@ -192,6 +236,8 @@ set_page = function(pageid=app$page$pageid, app=getApp(), text_num=1) {
   page$container.html = cont
 
   app$page = page
+  app$pageid = app$page$pageid
+  update_story_progress()
   show_page()
   show_develop()
 }
@@ -223,24 +269,47 @@ show_source = function(..., app=getApp()) {
   rstudioapi::navigateToFile(page$page.file)
 }
 
-load_user = function(userid, user.dir =getApp()$glob$userdir) {
-  file = file.path(user.dir,userid)
-  txt = readLines(file)
-  user = list(userid, cur_pageid = txt[1], max_pageid = txt[2])
+answer_click = function(values, ..., app = getApp()) {
+  args = list(...)
+  values
+
+  page = app$page
+  if (!is.null(page[["item.df"]])) {
+    orgpos = ""
+  } else {
+    orgpos = paste0(page$item.df$org_pos, collapse=";")
+  }
+  ans = list(userid=app$userid, gameid=app$gameid, quizid = page$quizid, ok = values$check$ok, orgpos=orgpos, answer = values$answer, origin = "s", time=Sys.time())
+
+  db = get.quizdb()
+  dbInsert(db, "answer", ans)
+
 }
 
-update_user = function(user=app$user, pageid = app$pageid, app=getApp(), glob=app$glob) {
-  user$cur_pageid = pageid
-  cur_row = which(glob$pages$pageid == user$cur_pageid)
-  max_row = which(glob$pages$pageid == user$max_pageid)
-
-  if (!isTRUE(max_row > cur_row)) {
-    user$max_pageid = user$cur_pageid
+load_story_progress = function(userid=app$userid, gameid = glob$gameid, app=getApp(), glob=app$glob) {
+  restore.point("load_story_progress")
+  db = get.quizdb()
+  if (!is.null(userid)) {
+    res = dbGet(db,"story_progress",list(userid=userid, gameid=gameid))
+  } else {
+    res = NULL
   }
 
-  file = file.path(user.dir,user$userid)
-  writeLines(c(user$cur_pageid,user$max_pageid), file)
-
-  app$user = user
-  invisible(user)
+  if (NROW(res)==0) {
+    res = list(userid=userid, gameid=gameid, pageid =glob$pages$pageid[1])
+  } else {
+    res = as.list(res)
+  }
 }
+
+update_story_progress = function(userid=app$userid, pageid = app$pageid, app=getApp(), glob=app$glob) {
+  if (is.null(userid)) return()
+  dat = tibble(userid, gameid=glob$gameid, pageid=pageid)
+  db = get.quizdb()
+  dbInsert(db, "story_progress", dat,mode="replace")
+
+  dat$time = Sys.time()
+  dbInsert(db, "story_log", dat)
+}
+
+

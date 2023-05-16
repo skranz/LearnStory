@@ -14,7 +14,7 @@ addin_show_md_page = function(...) {
   is_story = "img" %in% names(content) | !("question" %in% names(content))
 
   img.dir = "C:/libraries/LearnStory/muenster/img"
-  story.dir = quiz.dir = "C:/libraries/LearnStory/muenster/umwelt"
+  story.dir = quiz.dir = "C:/libraries/LearnStory/umwelt"
   pageid = tools::file_path_sans_ext(basename(file))
 
   if (is_story) {

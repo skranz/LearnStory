@@ -1,11 +1,11 @@
 example = function() {
-  quiz.dir = "C:/libraries/LearnStory/muenster/umwelt"
+  quiz.dir = "C:/libraries/LearnStory/umwelt"
 
   app = quizApp(quiz.dir, pageid="q1_06")
   viewApp(app,url.args = list(u="test"))
 }
 
-quizApp = function(quiz.dir, db.dir = quiz.dir, pageid=NULL, develop=TRUE, userid = NULL) {
+quizApp = function(quiz.dir, db.dir = quiz.dir, pageid=NULL, develop=TRUE, userid = NULL, gameid = basename(quiz.dir)) {
   restore.point("quizApp")
   app=eventsApp()
 
