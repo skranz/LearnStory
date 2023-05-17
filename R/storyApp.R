@@ -238,6 +238,7 @@ set_page = function(pageid=app$pageid, app=getApp(), text_num=1) {
 
   app$page = page
   app$pageid = app$page$pageid
+  app$attempt = 1
   update_story_progress()
   show_page()
   show_develop()
@@ -276,18 +277,10 @@ show_source = function(..., app=getApp()) {
 answer_click = function(values, ..., app = getApp()) {
   restore.point("answer_click")
   log.answer(values$answer, values$check)
+  if (is.null(app$attempt)) app$attempt = 0
+  app$attempt = app$attempt+1
   return()
 
-  page = app$page
-  if (!is.null(page[["item.df"]])) {
-    orgpos = ""
-  } else {
-    orgpos = paste0(page$item.df$org_pos, collapse=";")
-  }
-  ans = list(userid=app$userid, gameid=app$gameid, quizid = page$quizid, ok = values$check$ok, orgpos=orgpos, answer = values$answer, origin = "s", time=Sys.time())
-
-  db = get.quizdb()
-  dbInsert(db, "answer", ans)
 
 }
 

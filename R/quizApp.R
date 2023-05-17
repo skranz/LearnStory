@@ -211,6 +211,7 @@ set_quiz_page = function(qnum=app$qnum, quiz.df = app$quiz.df, app=getApp()) {
 
   quiz$quiz.html = rmdtools::replace.whiskers(glob$quiz.frag, quiz, eval=FALSE)
 
+  app$attempt = 1
   app$quiz = quiz
   show_quiz_page()
   show_quiz_develop()
@@ -239,11 +240,12 @@ show_quiz_develop = function(app=getApp()) {
   setUI("developUI",ui)
 }
 
-answer_quiz_click = function(value, ...) {
+answer_quiz_click = function(value, ..., app=getApp()) {
   args = list(...)
   restore.point("answer_quiz_click")
   log.answer(value$answer, value$check)
-
+  if (is.null(app$attempt)) app$attempt = 0
+  app$attempt = app$attempt+1
 }
 
 log.answer = function(answer, check, app=getApp()) {
@@ -276,6 +278,7 @@ log.answer = function(answer, check, app=getApp()) {
     userid = app$userid,
     gameid=app$gameid,
     quizid = quiz$quizid,
+    attempt = app$attempt,
     ok = check$ok,
     orgpos = orgpos,
     answer = answer,

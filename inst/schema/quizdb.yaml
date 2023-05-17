@@ -6,6 +6,7 @@ answer:
     userid: TEXT
     gameid: TEXT
     quizid: TEXT
+    attempt: INTEGER
     ok: BOOLEAN
     orgpos: TEXT
     answer: TEXT
