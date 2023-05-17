@@ -94,6 +94,9 @@ set_quiz_menu_ui = function(app=getApp(), glob=app$glob, restart=FALSE) {
   restore.point("set_quiz_menu_ui")
   kapitel = names(glob$chapters)
   names(kapitel) = unlist(glob$chapters)
+
+  hinweis = "<p><br><b>Hinweis:</b> Zum Teil gibt es Wissensfragen, für die du einfach gewisse Fakten lernen solltest. Oft gibt es aber mathematische Verständnisfragen. Verständnisfragen sind nicht zum Auswendiglernen gedacht, sondern sollen dir einfach Feedback geben, wie gut du die Thematik verstanden hast.</p>"
+
   if (restart) {
     vals = app$menu_values
     ui = tags$div(style="margin: 1em",
@@ -101,7 +104,8 @@ set_quiz_menu_ui = function(app=getApp(), glob=app$glob, restart=FALSE) {
       p("Du hast Quiz erfolgreich beendet. Wenn du magst, kannst du gleich noch eine Runde spielen."),
       selectInput("num_questions", "Anzahl Fragen",choices = c("3"=3, "5"=5, "10"=10,  "20"=20,"Alle"=1000), selected=vals$num_questions, multiple=FALSE),
       selectInput("chapters", "Kapitel", choices=kapitel,selected = vals$chapters, multiple = TRUE),
-      simpleButton("startQuizBtn","Starte Quiz",form.ids = c("num_questions","chapters"))
+      simpleButton("startQuizBtn","Starte Quiz",form.ids = c("num_questions","chapters")),
+      HTML(hinweis)
     )
 
   } else {
@@ -109,7 +113,9 @@ set_quiz_menu_ui = function(app=getApp(), glob=app$glob, restart=FALSE) {
       h4(glob$title),
       selectInput("num_questions", "Anzahl Fragen",choices = c("3"=3, "5"=5, "10"=10,  "20"=20,"Alle"=1000), selected=100, multiple=FALSE),
       selectInput("chapters", "Kapitel", choices=kapitel,selected = kapitel, multiple = TRUE),
-      simpleButton("startQuizBtn","Starte Quiz",form.ids = c("num_questions","chapters"))
+      simpleButton("startQuizBtn","Starte Quiz",form.ids = c("num_questions","chapters")),
+      HTML(hinweis)
+
     )
   }
 
