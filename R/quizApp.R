@@ -1,8 +1,8 @@
 example = function() {
   quiz.dir = "C:/libraries/LearnStory/umwelt"
 
-  app = quizApp(quiz.dir, pageid="q2a_02")
-  #app = quizApp(quiz.dir)
+  #app = quizApp(quiz.dir, pageid="q2a_02")
+  app = quizApp(quiz.dir)
   viewApp(app,url.args = list(u="test"))
 }
 
@@ -90,18 +90,29 @@ init_quiz_app = function(cookies=NULL, app=getApp(), glob=app$glob) {
   set_quiz_menu_ui()
 }
 
-set_quiz_menu_ui = function(app=getApp(), glob=app$glob) {
+set_quiz_menu_ui = function(app=getApp(), glob=app$glob, restart=FALSE) {
+  restore.point("set_quiz_menu_ui")
   kapitel = names(glob$chapters)
   names(kapitel) = unlist(glob$chapters)
-
-  ui = tagList(
-    tags$div(style="margin: 1em",
-    h4(glob$title),
-    selectInput("num_questions", "Anzahl Fragen",choices = c("10"=10,"20"=20,"Alle"=1000), selected=100, multiple=FALSE),
-    selectInput("chapters", "Kapitel", choices=kapitel,selected = kapitel, multiple = TRUE),
-    simpleButton("startQuizBtn","Starte Quiz",form.ids = c("num_questions","chapters"))
+  if (restart) {
+    vals = app$menu_values
+    ui = tags$div(style="margin: 1em",
+      h4("Gut gemacht!"),
+      p("Du hast Quiz erfolgreich beendet. Wenn du magst, kannst du gleich noch eine Runde spielen."),
+      selectInput("num_questions", "Anzahl Fragen",choices = c("3"=3, "5"=5, "10"=10,  "20"=20,"Alle"=1000), selected=vals$num_questions, multiple=FALSE),
+      selectInput("chapters", "Kapitel", choices=kapitel,selected = vals$chapters, multiple = TRUE),
+      simpleButton("startQuizBtn","Starte Quiz",form.ids = c("num_questions","chapters"))
     )
-  )
+
+  } else {
+    ui = tags$div(style="margin: 1em",
+      h4(glob$title),
+      selectInput("num_questions", "Anzahl Fragen",choices = c("3"=3, "5"=5, "10"=10,  "20"=20,"Alle"=1000), selected=100, multiple=FALSE),
+      selectInput("chapters", "Kapitel", choices=kapitel,selected = kapitel, multiple = TRUE),
+      simpleButton("startQuizBtn","Starte Quiz",form.ids = c("num_questions","chapters"))
+    )
+  }
+
   setUI("mainUI",ui)
 }
 
@@ -112,7 +123,7 @@ quiz_app_handlers = function(app=getApp()) {
 
   if (app$glob$develop) {
     buttonHandler("refreshBtn",function(...) set_quiz_page())
-    buttonHandler("#showSourceBtn",function(...) show_source())
+    buttonHandler("showSourceBtn",function(...) show_source())
   }
 
 }
@@ -144,6 +155,7 @@ choose_single_quiz = function(pageid, pages=getApp()$glob$pages) {
 
 choose_quizes = function(num_questions, chapters, pages=getApp()$glob$pages) {
   restore.point("choose_quizes")
+  num_questions = as.integer(num_questions)
   quiz.df = pages[pages$chapter %in% chapters,]
   if (num_questions > NROW(quiz.df))
     num_questions = NROW(quiz.df)
@@ -154,6 +166,10 @@ choose_quizes = function(num_questions, chapters, pages=getApp()$glob$pages) {
 
 next_quiz_click = function(..., app=getApp()) {
   app$qnum = app$qnum+1
+  if (app$qnum > NROW(app$quiz.df)) {
+    set_quiz_menu_ui(restart=TRUE)
+    return()
+  }
   set_quiz_page()
 }
 
@@ -161,7 +177,11 @@ next_quiz_click = function(..., app=getApp()) {
 start_quiz_click = function(formValues, ..., app=getApp()) {
   restore.point("start_quiz_click")
 
+  app$menu_values = formValues
+
   formValues$chapters = unlist(formValues$chapters)
+
+
   copy.into.env(formValues, app)
   glob = app$glob
 
