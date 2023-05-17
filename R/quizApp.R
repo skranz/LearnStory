@@ -1,11 +1,12 @@
 example = function() {
   quiz.dir = "C:/libraries/LearnStory/umwelt"
 
-  app = quizApp(quiz.dir, pageid="q1_06")
+  app = quizApp(quiz.dir, pageid="q2a_02")
+  #app = quizApp(quiz.dir)
   viewApp(app,url.args = list(u="test"))
 }
 
-quizApp = function(quiz.dir, db.dir = quiz.dir, pageid=NULL, develop=TRUE, userid = NULL, gameid = basename(quiz.dir)) {
+quizApp = function(quiz.dir, db.dir = quiz.dir, pageid=NULL, develop=TRUE, userid = NULL, gameid = basename(quiz.dir), with.mathjax=TRUE) {
   restore.point("quizApp")
   app=eventsApp()
 
@@ -13,10 +14,14 @@ quizApp = function(quiz.dir, db.dir = quiz.dir, pageid=NULL, develop=TRUE, useri
   glob = app$glob
   glob$develop = develop
   glob$quiz.dir = quiz.dir
+  glob$fixed_userid = userid
+  glob$gameid = app$gameid = gameid
+
   glob$userid = userid
   glob$pageid = pageid
   glob$origin = "q"
 
+  glob$with.mathjax = with.mathjax
 
   glob$db.dir = db.dir
   glob$use.db = !is.null(db.dir)
@@ -58,19 +63,9 @@ quizApp = function(quiz.dir, db.dir = quiz.dir, pageid=NULL, develop=TRUE, useri
 
 
 init_quiz_app = function(cookies=NULL, app=getApp(), glob=app$glob) {
-  query <- parseQueryString(app$session$clientData$url_search)
-  cat("query: ", app$session$clientData$url_search)
-  restore.point("init_quiz_app")
+    restore.point("init_story_app")
 
-  userid = first.non.null(query$u, glob$userid)
-
-  # No userid specified
-  if (is.null(userid)) {
-    app$new_user = TRUE
-    userid = random.string(1,8)
-  }
-  app$userid = userid
-
+  # Don't specify a user if glob$pageid is provided
   if (!is.null(glob$pageid)) {
     quiz.df = choose_single_quiz(glob$pageid, glob$pages)
     app$quiz.df = quiz.df
@@ -79,13 +74,25 @@ init_quiz_app = function(cookies=NULL, app=getApp(), glob=app$glob) {
     return()
   }
 
+  app$userid = cookies[["learn_story_userid"]][[1]]
+  cat("\nuserid from cookies: ", app$userid,"\n")
+
+  if (!is.null(glob$fixed_userid)) {
+    app$userid = glob$fixed_userid
+    setCookie("learn_story_userid",list(userid=app$userid))
+  }
+
+  app$new.user = is.null(app$userid)
+  if (is.null(app$userid)) {
+    app$userid = random.string(1,10)
+    setCookie("learn_story_userid",list(userid=app$userid))
+  }
   set_quiz_menu_ui()
 }
 
 set_quiz_menu_ui = function(app=getApp(), glob=app$glob) {
   kapitel = names(glob$chapters)
   names(kapitel) = unlist(glob$chapters)
-
 
   ui = tagList(
     tags$div(style="margin: 1em",
@@ -104,8 +111,8 @@ quiz_app_handlers = function(app=getApp()) {
   eventHandler("answer_click","answer_click",answer_quiz_click)
 
   if (app$glob$develop) {
-    buttonHandler("refreshBtn",set_quiz_page)
-    buttonHandler("#showSourceBtn",show_source)
+    buttonHandler("refreshBtn",function(...) set_quiz_page())
+    buttonHandler("#showSourceBtn",function(...) show_source())
   }
 
 }
@@ -193,7 +200,11 @@ set_quiz_page = function(qnum=app$qnum, quiz.df = app$quiz.df, app=getApp()) {
 
 show_quiz_page = function(quiz=app$quiz, app=getApp()) {
   restore.point("show_quiz")
-  setUI("mainUI", HTML(quiz$quiz.html))
+  ui = HTML(quiz$quiz.html)
+  if (app$glob$with.mathjax) {
+    ui = shiny::withMathJax(ui)
+  }
+  setUI("mainUI",ui)
 }
 
 
@@ -243,6 +254,7 @@ log.answer = function(answer, check, app=getApp()) {
 
   log = list(
     userid = app$userid,
+    gameid=app$gameid,
     quizid = quiz$quizid,
     ok = check$ok,
     orgpos = orgpos,

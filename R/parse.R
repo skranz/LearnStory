@@ -107,6 +107,7 @@ parse_quiz_page = function(page.file, app=getApp(), quiz.dir  = glob$quiz.dir, g
     p[fields] = defaults[fields]
   }
 
+
   p = parse_quiz_elements(p)
   p = prepare_page_quiz(p)
 
@@ -388,20 +389,29 @@ parse_quiz_items = function(txt, modes = c("abc","-")) {
 
   start.rows = item.rows
   end.rows = lead(item.rows-1)
-  if (any(empty.rows>max(start.rows))) {
-    end.rows[length(end.rows)] = min(empty.rows[empty.rows>max(start.rows)])
+  info.rows = which(startsWith(trim, "info: "))
+  if (any(empty.rows>max(c(start.rows, info.rows)))) {
+    end.rows[length(end.rows)] = min(empty.rows[empty.rows>max(c(start.rows, info.rows))])
   } else {
     end.rows[length(end.rows)] = length(txt)
   }
 
+  org.end.rows = end.rows
   info = rep("", length(item.rows))
-  info.rows = which(startsWith(trim, "info: "))
   for (ii in seq_along(info.rows)) {
     irow = info.rows[ii]
     i = which(start.rows < irow & end.rows >= irow)
     info[i] = merge.lines(trim[irow:end.rows[i]]) %>% trimws() %>% substring(7)
     end.rows[i] = irow-1
   }
+  info[info!=""] = sapply(info[info!=""], md2html, fragment.only=TRUE)
+
+  info[info!=""] = sapply(info[info!=""], function(str) {
+    str = md2html(str,fragment.only=TRUE)
+    str = gsub("<p>","", str, fixed=TRUE)
+    str = gsub("</p>","", str, fixed=TRUE)
+    trimws(str)
+  })
 
   items = sapply(seq_along(start.rows), function(i) {
     trimws(merge.lines(trim[start.rows[i]:end.rows[i]]))
@@ -410,14 +420,21 @@ parse_quiz_items = function(txt, modes = c("abc","-")) {
   correct = endsWith(items,"*")
   items[correct] = str.remove.ends(items[correct], right=1)
 
+  items = sapply(items, function(item) {
+    str = md2html(item,fragment.only=TRUE)
+    str = gsub("<p>","", str, fixed=TRUE)
+    str = gsub("</p>","", str, fixed=TRUE)
+    trimws(str)
+  })
+
   item.df = tibble(org_pos= seq_along(items), org_abc=abc, correct=correct, item=items, info=info)
 
   head = tail = ""
   if (start.rows[1] > 1) {
     head = merge.lines(txt[1:(start.rows[1]-1)])
   }
-  if (last(end.rows)< length(txt)) {
-    tail = merge.lines(txt[(last(end.rows)+1):length(txt)])
+  if (last(org.end.rows)< length(txt)) {
+    tail = merge.lines(txt[(last(org.end.rows)+1):length(txt)])
   }
 
   list(item.df=item.df, head=head, tail=tail)

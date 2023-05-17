@@ -11,7 +11,7 @@ example = function() {
 
 }
 
-storyApp = function(story.dir, img.dir, db.dir = story.dir, title="Münster Escape", start_pageid=NULL, develop=TRUE, gameid = basename(story.dir), userid=NULL) {
+storyApp = function(story.dir, img.dir, db.dir = story.dir, title="Münster Escape", start_pageid=NULL, develop=TRUE, gameid = basename(story.dir), userid=NULL, with.mathjax = TRUE) {
   restore.point("storyApp")
   app=eventsApp(add.events = NULL)
 
@@ -26,6 +26,7 @@ storyApp = function(story.dir, img.dir, db.dir = story.dir, title="Münster Esca
   glob$img.dir = img.dir
   glob$pages = get_story_pages(story.dir)
   glob$gameid = app$gameid = gameid
+  glob$with.mathjax = with.mathjax
 
   glob$db.dir = db.dir
   glob$use.db = !is.null(db.dir)
@@ -77,7 +78,7 @@ init_story_app = function(cookies=NULL, start_pageid=NULL, app=getApp(), glob=ap
   #base.url = app$session$clientData$url_search
   #query <- parseQueryString(app$session$clientData$url_search)
   #cat("query: ", app$session$clientData$url_search)
-  restore.point("story_app")
+  restore.point("init_story_app")
 
   # Don't specify a user if start_pageid is provided
   if (!is.null(start_pageid)) {
@@ -100,7 +101,7 @@ init_story_app = function(cookies=NULL, start_pageid=NULL, app=getApp(), glob=ap
     res = load_story_progress()
     copy.into.env(res,app)
   } else {
-    app$userid = random.string(1,14)
+    app$userid = random.string(1,10)
     setCookie("learn_story_userid",list(userid=app$userid))
   }
   set_start_page()
@@ -248,6 +249,9 @@ show_page = function(page = app$page, app=getApp()) {
   ui = tagList(
     HTML(page$container.html)
   )
+  if (glob$with.mathjax) {
+    ui = shiny::withMathJax(ui)
+  }
   setUI("mainUI",ui)
 }
 
@@ -270,8 +274,9 @@ show_source = function(..., app=getApp()) {
 }
 
 answer_click = function(values, ..., app = getApp()) {
-  args = list(...)
-  values
+  restore.point("answer_click")
+  log.answer(values$answer, values$check)
+  return()
 
   page = app$page
   if (!is.null(page[["item.df"]])) {
