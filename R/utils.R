@@ -1,7 +1,7 @@
 random.string = function(n=1,nchar=8) {
   first = sample(c(letters,LETTERS),n, replace = TRUE)
   chars = sample(c(letters,LETTERS, 0:9),(nchar-1)*n, replace = TRUE)
-  if (n == 1) return(paste0(first, chars, collapse=""))
+  if (n == 1) return(paste0(c(first, chars), collapse=""))
   mat = as.data.frame(matrix(c(first,chars), n, nchar))
   do.call(paste0,mat)
 }
@@ -35,6 +35,10 @@ set.null.fields = function(x, fields, default) {
   x
 }
 
+remove.cols = function(x, cols) {
+  x[setdiff(names(x),cols)]
+}
+
 ensure.cols = function(x, col, default=NA) {
   make.cols = setdiff(col, names(x))
   for (col in make.cols) {
@@ -45,4 +49,10 @@ ensure.cols = function(x, col, default=NA) {
 
 has.col = function(x,col) {
   col %in% names(x)
+}
+
+
+is.true.vec = function(val) {
+  val[is.na(val)] = FALSE
+  return(val)
 }

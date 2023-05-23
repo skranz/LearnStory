@@ -5,13 +5,13 @@ example = function() {
   img.dir = "C:/libraries/LearnStory/muenster/img"
 
   #app = storyApp(story.dir, img.dir, userid="test")
-  app = storyApp(story.dir, img.dir)
+  app = storyApp(story.dir, img.dir, extra.html=extra.html)
   viewApp(app,launch.browser = TRUE)
   viewApp(app,url.args = list(u="H349ajndewz6"))
 
 }
 
-storyApp = function(story.dir, img.dir, db.dir = story.dir, title="Münster Escape", start_pageid=NULL, develop=TRUE, gameid = basename(story.dir), userid=NULL, with.mathjax = TRUE) {
+storyApp = function(story.dir, img.dir, db.dir = story.dir, title="Münster Escape", start_pageid=NULL, develop=TRUE, gameid = basename(story.dir), userid=NULL, with.mathjax = TRUE, extra.html=NULL) {
   restore.point("storyApp")
   app=eventsApp(add.events = NULL)
 
@@ -56,7 +56,8 @@ storyApp = function(story.dir, img.dir, db.dir = story.dir, title="Münster Esca
       sidebarLayout(uiOutput("developUI"), uiOutput("mainUI"))
     } else {
       uiOutput("mainUI")
-    }
+    },
+    if (!is.null(extra.html)) HTML(extra.html)
   )
 
   #if (is.null(start_pageid))

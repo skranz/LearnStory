@@ -6,6 +6,6 @@ Author: Sebastian Kranz
 Maintainer: Sebastian Kranz <sebastian.kranz@uni-ulm.de>
 Description: 
 License: GPL >= 2.0
-Depends: shinyEvents, rmdtools, yaml, rstudioapi, jsonlite, dbmisc, dplyr
+Depends: shinyEvents, rmdtools, yaml, rstudioapi, jsonlite, dbmisc, dplyr, DBI
 Encoding: UTF-8
 LazyData: true

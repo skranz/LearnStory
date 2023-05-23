@@ -15,6 +15,24 @@ answer:
   index:
     - [userid, gameid]
 
+
+# For quickly assessing users answers and
+# using for adaptive randomization
+answer_stat:
+  table:
+    userid: TEXT
+    gameid: TEXT
+    quizid: TEXT
+    time: DATETIME
+    last_correct: INTEGER
+    num_correct: INTEGER
+    num_wrong: INTEGER
+  unique_index:
+    - [userid, gameid, quizid]
+  index:
+    - [gameid, quizid]
+
+
 quiz_source:
   table:
     quizid: TEXT

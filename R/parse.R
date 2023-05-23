@@ -94,11 +94,16 @@ parse_story_page = function(page.file, img.dir=glob$img.dir, app=getApp(), story
   p
 }
 
-parse_quiz_page = function(page.file, app=getApp(), quiz.dir  = glob$quiz.dir, glob=getApp()$glob) {
+parse_quiz_page = function(page.file,  quiz.dir  = glob$quiz.dir, glob=getApp()$glob, app=getApp()) {
 
   restore.point("parse_quiz_page")
   txt = readUtf8(page.file)
-  p = parse.page.md(txt)
+  p = try(parse.page.md(txt),silent = TRUE)
+  if (is(p, "try-error")) {
+    msg = as.character(p) %>% sep.lines()
+    msg =  merge.lines(msg[-1])
+    stop("\nError when parsing quiz ", page.file,"\n", msg)
+  }
 
   default.file = file.path(quiz.dir, "defaults.md")
   if (file.exists(default.file)) {
