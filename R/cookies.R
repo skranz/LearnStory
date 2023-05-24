@@ -55,7 +55,7 @@ getLoadedCookies = function(app=getApp()) {
 
 cookiesHeader = function(onload.cookies=NULL, eventId="loadPageCookies",...) {
   library(htmltools)
-  src = c(file=system.file("www", package="shinyChatQuiz"))
+  src = c(file=system.file("www", package="LearnStory"))
   js = NULL
   if (!is.null(onload.cookies)) {
     js = paste0('
